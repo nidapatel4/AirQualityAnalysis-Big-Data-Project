@@ -1,0 +1,16 @@
+# Large dataset
+air_quality_cleaned.csv
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+mapper_output.txt
+test_full_reducer.txt
