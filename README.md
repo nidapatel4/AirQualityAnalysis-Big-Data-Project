@@ -1,407 +1,219 @@
-# 🌍 Air Quality Analysis using Hadoop MapReduce
+﻿# Air Quality Big Data Analytics Platform
 
-A Big Data project for analyzing **India's Air Quality dataset (2015–2020)** using **Apache Hadoop, HDFS, Hadoop Streaming, and Python MapReduce**.
+## Project Title
+Air Quality Big Data Analytics Platform
 
-The project processes a large air-quality dataset and performs distributed analysis using two MapReduce jobs:
+## Problem Statement
+Air-quality data is collected at high frequency from many monitoring stations across India. A single-machine approach becomes inefficient when the dataset grows to millions of records. This project demonstrates how Hadoop MapReduce can process the cleaned dataset in a distributed manner, produce aggregated analytics, and expose the results through a backend API and interactive dashboard.
 
-1. **Average PM2.5 concentration per monitoring station**
-2. **AQI category frequency per date**
+## Objectives
+- Preserve the existing Hadoop MapReduce implementation as the project core.
+- Validate preprocessing and cleaned data quality.
+- Demonstrate HDFS and streaming-based MapReduce processing.
+- Produce AQI category counts by date and average PM2.5 per station.
+- Expose results through a backend API.
+- Present interactive dashboard visuals for dashboard evaluation.
+- Document the pipeline for academic reporting.
 
----
+## Technologies Used
+- Python
+- Pandas
+- Apache Hadoop / HDFS
+- Hadoop Streaming
+- MapReduce
+- Flask
+- HTML / CSS / JavaScript
+- Chart.js
 
-## 📌 Project Overview
+## Dataset
+This project uses the cleaned India air quality dataset prepared from the original raw source. The cleaned file is: `air_quality_cleaned.csv`.
 
-Air-quality datasets contain millions of records collected from monitoring stations across India. Processing such datasets using traditional single-machine scripts can become inefficient as the data volume increases.
+Actual values from the project:
+- Records: 1,880,106
+- Stations: 107
+- Days analyzed: 2,009
+- Columns: StationId, Datetime, PM2.5, AQI_Bucket
+- Time period: 2015-01-01 to 2020-07-01
+- Missing values: actual count is computed at runtime
+- PM2.5 range: 0.01 to 1000.0
 
-This project demonstrates how **Hadoop MapReduce** can be used to process and analyze large-scale air-quality data.
+### Geographic data check
+The cleaned dataset does not retain usable latitude/longitude coordinates. The station metadata file includes `StationName`, `City`, and `State`, but no latitude or longitude fields. For this reason, the dashboard does not fabricate a map. It instead reports station coverage by state as a truthful geographic summary.
 
-### Technologies Used
-
-* **Apache Hadoop 3.3.6**
-* **HDFS** — distributed storage
-* **Hadoop MapReduce**
-* **Hadoop Streaming**
-* **Python 3.9**
-* **Pandas** — data preprocessing
-* **Jupyter Notebook**
-* **Git & GitHub**
-* **Windows**
-
----
-
-## 📊 Dataset
-
-**Dataset:** India Air Quality Data (2015–2020)
-
-The original dataset contains air-quality observations collected from monitoring stations across India.
-
-### Important columns
-
-| Column       | Description                                 |
-| ------------ | ------------------------------------------- |
-| `StationId`  | Unique identifier of the monitoring station |
-| `Datetime`   | Date and time of observation                |
-| `PM2.5`      | Concentration of fine particulate matter    |
-| `AQI_Bucket` | Air Quality Index category                  |
-
-The project uses a cleaned version of the dataset containing approximately **1.88 million records**.
-
----
-
-# 🏗️ System Architecture
-
+## Architecture
 ```text
-                 Air Quality CSV
-                       │
-                       ▼
-              Data Preprocessing
-                       │
-                       ▼
-                  Cleaned CSV
-                       │
-                       ▼
-                     HDFS
-                       │
-              ┌────────┴────────┐
-              │                 │
-              ▼                 ▼
-       PM2.5 MapReduce      AQI MapReduce
-              │                 │
-              ▼                 ▼
-          Mapper            Mapper
-              │                 │
-              ▼                 ▼
-        Shuffle & Sort     Shuffle & Sort
-              │                 │
-              ▼                 ▼
-          Reducer            Reducer
-              │                 │
-              ▼                 ▼
-     Average PM2.5       AQI Bucket Counts
-       per Station           per Date
+Raw Dataset
+    ↓
+Python / Pandas preprocessing
+    ↓
+Clean CSV
+    ↓
+HDFS
+    ↓
+MapReduce job 1: AQI by date/category
+    ↓
+MapReduce job 2: Average PM2.5 by station
+    ↓
+Hadoop output files
+    ↓
+Flask API
+    ↓
+Interactive dashboard
 ```
 
----
+## Hadoop and MapReduce Jobs
 
-# 🔎 MapReduce Jobs
+### Job 1: AQI Category Analysis
+Mapper output format:
+```text
+(date, AQI_Bucket) -> 1
+```
+Reducer behavior:
+```text
+COUNT observations for each (date, AQI_Bucket)
+```
+Output file:
+```text
+output_aqi_bucket.txt
+```
+Example:
+```text
+2015-01-01	Severe	8
+2015-01-01	Very Poor	8
+2015-01-02	Very Poor	16
+```
 
-## 1. Average PM2.5 per Station
-
-### Mapper
-
-The mapper reads each air-quality record and emits:
-
+### Job 2: Average PM2.5 by Station
+Mapper output format:
 ```text
 (StationId, PM2.5)
 ```
-
+Reducer behavior:
+```text
+AVG(PM2.5) by StationId
+```
+Output file:
+```text
+output_avg_pm25.txt
+```
 Example:
-
 ```text
-AP001    42.5
-AP001    35.0
-AP001    38.5
+AP001 	38.75
+AP005 	48.27
+AS001 	61.61
 ```
 
-### Shuffle and Sort
+## Hadoop Concepts Demonstrated
+- HDFS storage
+- Distributed input data
+- Mapper logic
+- Shuffle and Sort
+- Reducer logic
+- Aggregation with count and average
+- Hadoop output files consumed by backend services
 
-Hadoop automatically groups records having the same `StationId`.
-
-```text
-AP001 → 42.5, 35.0, 38.5
-```
-
-### Reducer
-
-The reducer calculates the average:
-
-```text
-Average PM2.5 = Sum of PM2.5 values / Number of observations
-```
-
-Example output:
-
-```text
-AP001    38.67
-```
-
-### Output
-
-The final output contains the average PM2.5 concentration for each monitoring station.
-
----
-
-## 2. AQI Bucket Count per Date
-
-### Mapper
-
-The mapper extracts the date and AQI category:
-
-```text
-(Date, AQI_Bucket)
-```
-
-Example:
-
-```text
-2015-12-02    Poor
-2015-12-02    Very Poor
-2015-12-02    Poor
-2015-12-02    Good
-```
-
-### Shuffle and Sort
-
-Hadoop groups records by date.
-
-### Reducer
-
-The reducer counts the occurrences of each AQI category for every date.
-
-Example:
-
-```text
-2015-12-02    Poor          61
-2015-12-02    Very Poor     97
-2015-12-02    Severe        41
-2015-12-02    Good          56
-```
-
----
-
-# 📁 Project Structure
-
+## Project Structure
 ```text
 AirQualityAnalysis-Big-Data-Project/
-│
 ├── air_quality_cleaned.csv
-│
-├── dataPreprocessing.ipynb
-├── textToCsvConverter.ipynb
-│
-├── mapper_avg_pm25.py
-├── reducer_avg_pm25.py
-│
+├── output_aqi_bucket.txt
+├── output_avg_pm25.txt
 ├── mapper_aqi_bucket.py
+├── mapper_avg_pm25.py
 ├── reducer_aqi_bucket.py
-│
-├── pm25_output.txt
-├── aqi_bucket_output.txt
-│
-├── stations.csv
-├── sample_input.csv
+├── reducer_avg_pm25.py
+├── backend/
+│   ├── __init__.py
+│   ├── analytics_service.py
+│   └── main.py
+├── frontend/
+│   ├── index.html
+│   ├── app.js
+│   └── styles.css
+├── docs/
+│   └── project_docs.md
+├── tests/
+│   └── test_backend.py
+├── requirements.txt
 ├── README.md
-└── ...
+└── .gitignore
 ```
 
----
+## Dashboard Pages
+- Overview Dashboard
+- Combined AQI & PM2.5 Analysis
+- Geography (state-level station coverage; no fabricated coordinates)
+- Historical Monitoring Snapshot (derived from station-average Hadoop output, not live data)
+- Big Data Pipeline
+- Dataset Information
+- About
 
-# ⚙️ Hadoop Setup
+## Backend API Endpoints
+- GET /api/overview
+- GET /api/aqi
+- GET /api/aqi/trend
+- GET /api/pm25
+- GET /api/pm25/top-stations
+- GET /api/stations
+- GET /api/data
+- GET /api/dataset-info
+- GET /api/jobs
+- GET /api/live-monitoring
 
-This project was implemented using:
+## How to Run
+### 1. Install dependencies
+```powershell
+cd C:\Users\Amaan\Downloads\AirQualityAnalysis-Big-Data-Project
+python -m pip install -r requirements.txt
+```
 
+### 2. Start the backend dashboard
+```powershell
+cd C:\Users\Amaan\Downloads\AirQualityAnalysis-Big-Data-Project
+python backend/main.py
+```
+
+Open the application in a browser:
 ```text
-Hadoop 3.3.6
-Python 3.9.13
-Java 21
-Windows
+http://127.0.0.1:5000/
 ```
 
-HDFS and YARN are used to execute the MapReduce jobs.
-
----
-
-# 🚀 Running the Project
-
-## 1. Start Hadoop
-
-Start HDFS:
-
-```cmd
-start-dfs.cmd
-```
-
-Start YARN:
-
-```cmd
-start-yarn.cmd
-```
-
-Verify HDFS:
-
-```cmd
-hdfs dfsadmin -report
-```
-
----
-
-## 2. Upload Dataset to HDFS
-
-Create the HDFS input directory:
-
-```cmd
-hdfs dfs -mkdir -p /airquality/input
-```
-
-Upload the cleaned dataset:
-
-```cmd
-hdfs dfs -put air_quality_cleaned.csv /airquality/input/
-```
-
-Verify:
-
-```cmd
-hdfs dfs -ls /airquality/input
-```
-
----
-
-# ▶️ Run PM2.5 MapReduce
+### 3. Optional: Hadoop execution
+If Hadoop is installed locally, the original MapReduce commands can be run in a Hadoop environment using the existing mapper and reducer scripts:
 
 ```cmd
 hadoop jar "%HADOOP_HOME%\share\hadoop\tools\lib\hadoop-streaming-3.3.6.jar" -files "mapper_avg_pm25.py,reducer_avg_pm25.py" -input /airquality/input/air_quality_cleaned.csv -output /airquality/output_avg_pm25 -mapper "python mapper_avg_pm25.py" -reducer "python reducer_avg_pm25.py"
 ```
 
-View the output:
-
-```cmd
-hdfs dfs -cat /airquality/output_avg_pm25/part-00000
-```
-
----
-
-# ▶️ Run AQI MapReduce
-
 ```cmd
 hadoop jar "%HADOOP_HOME%\share\hadoop\tools\lib\hadoop-streaming-3.3.6.jar" -files "mapper_aqi_bucket.py,reducer_aqi_bucket.py" -input /airquality/input/air_quality_cleaned.csv -output /airquality/output_aqi_bucket -mapper "python mapper_aqi_bucket.py" -reducer "python reducer_aqi_bucket.py"
 ```
 
-View the output:
+## Validation
+The project was validated with unit tests and actual data inspection:
+- 6 backend API tests passed
+- Full dataset size verified as 1,880,106 records
+- AQI output file contains 10,667 date-category rows
+- PM2.5 output file contains 107 station averages
 
-```cmd
-hdfs dfs -cat /airquality/output_aqi_bucket/part-00000
-```
+## Documentation
+The detailed project documentation is available in:
+- `docs/project_docs.md`
 
----
+It includes the architecture diagram, data flow diagram, use case flow, activity flow, sequence flow, and MapReduce workflow diagram.
 
-# 📈 Results
+## Current Limitation
+This repository preserves the Hadoop core and exposes the output via a lightweight Flask dashboard. A full Hadoop cluster was not configured in this environment, so the dashboard loads processed Hadoop outputs rather than triggering live cluster execution at every request.
 
-### PM2.5 Analysis
+## Viva Guidance
+Focus on the story:
+- raw dataset
+- preprocessing
+- HDFS input
+- Hadoop streaming mappers and reducers
+- shuffle and sort
+- aggregated outputs
+- Flask API
+- interactive dashboard
 
-The PM2.5 MapReduce job processed approximately **1.88 million input records** and generated the average PM2.5 concentration for **99 monitoring stations**.
-
-Example:
-
-```text
-AP001    38.75
-AP005    48.27
-AS001    61.61
-BR005    71.89
-BR006    33.70
-```
-
-### AQI Analysis
-
-The AQI MapReduce job processed approximately **1.88 million records** and produced **10,667 date-category results**.
-
-Example:
-
-```text
-2015-12-02    Poor          61
-2015-12-02    Very Poor     97
-2015-12-02    Severe        41
-2015-12-02    Good          56
-2015-12-02    Moderate      23
-2015-12-02    Satisfactory  57
-```
-
----
-
-# 🧠 Why Hadoop MapReduce?
-
-Traditional Python processing runs primarily on a single machine.
-
-Hadoop provides:
-
-* Distributed storage using **HDFS**
-* Parallel processing using **MapReduce**
-* Automatic **shuffle and sort**
-* Fault tolerance
-* Scalability for larger datasets
-
-Although Python is used to implement the mapper and reducer, **Hadoop remains responsible for distributing the data and executing the MapReduce workflow**.
-
-Hadoop Streaming makes it possible to use Python programs instead of writing the MapReduce logic entirely in Java.
-
----
-
-# 🔄 MapReduce Data Flow
-
-### PM2.5
-
-```text
-CSV Record
-    ↓
-Mapper
-    ↓
-(StationId, PM2.5)
-    ↓
-Shuffle & Sort
-    ↓
-StationId → PM2.5 values
-    ↓
-Reducer
-    ↓
-Average PM2.5
-```
-
-### AQI
-
-```text
-CSV Record
-    ↓
-Mapper
-    ↓
-(Date, AQI_Bucket)
-    ↓
-Shuffle & Sort
-    ↓
-Date → AQI categories
-    ↓
-Reducer
-    ↓
-AQI category counts
-```
-
----
-
-# 👩‍💻 Author
-
-**Nida**
-
-Computer Engineering
-MCT's Rajiv Gandhi Institute of Technology, Mumbai
-
----
-
-## ⭐ Key Learning Outcomes
-
-Through this project, the following Big Data concepts were implemented:
-
-* HDFS
-* Hadoop ecosystem
-* MapReduce programming model
-* Hadoop Streaming
-* Mapper and Reducer design
-* Shuffle and Sort
-* Distributed data processing
-* Large-scale CSV processing
-* Data preprocessing
-* Big Data workflow on Windows
-
----
-
-## 📜 License
-
-This project is intended for **academic and educational purposes**.
+This is the core academic Big Data pipeline for the project.

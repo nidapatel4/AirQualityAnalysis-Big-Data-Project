@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Air Quality Big Data Analytics Platform</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <h2>Air Quality</h2>
+          <small>Big Data Analytics</small>
+        </div>
+        <nav>
+          <button class="nav-btn active" data-target="overview">Dashboard</button>
+          <button class="nav-btn" data-target="analysis">AQI &amp; PM2.5 Analysis</button>
+          <button class="nav-btn" data-target="geography">Geography</button>
+          <button class="nav-btn" data-target="live">Monitoring Snapshot</button>
+          <button class="nav-btn" data-target="pipeline">Pipeline</button>
+          <button class="nav-btn" data-target="dataset">Dataset</button>
+          <button class="nav-btn" data-target="about">About</button>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <section id="overview" class="panel active-panel">
+          <div class="page-header">
+            <h1>Overview Dashboard</h1>
+          </div>
+          <div id="kpi-grid" class="kpi-grid"></div>
+          <div class="chart-grid two-up">
+            <div class="chart-card">
+              <h3>AQI Category Distribution</h3>
+              <canvas id="aqiBarChart"></canvas>
+            </div>
+            <div class="chart-card">
+              <h3>Top Polluted Stations</h3>
+              <canvas id="pm25BarChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3>AQI Trend Over Time</h3>
+            <canvas id="aqiTrendChart"></canvas>
+          </div>
+        </section>
+
+        <section id="analysis" class="panel">
+          <div class="page-header">
+            <h1>AQI &amp; PM2.5 Analysis</h1>
+          </div>
+          <div class="info-box">
+            MapReduce Job 1 groups observations by date and AQI category and calculates the number of observations belonging to each category.
+          </div>
+          <div class="info-box">
+            MapReduce Job 2 groups PM2.5 observations by station and computes the average PM2.5 concentration.
+          </div>
+          <div class="filters">
+            <select id="aqiCategoryFilter">
+              <option value="">All AQI categories</option>
+            </select>
+          </div>
+          <div class="chart-grid two-up">
+            <div class="chart-card">
+              <h3>AQI Category Distribution</h3>
+              <canvas id="aqiAnalysisChart"></canvas>
+            </div>
+            <div class="chart-card">
+              <h3>AQI Count by Day</h3>
+              <canvas id="aqiTrendDetailChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3>Top 10 Most Polluted Stations (Average PM2.5)</h3>
+            <canvas id="topStationsChart"></canvas>
+          </div>
+        </section>
+
+        <section id="geography" class="panel">
+          <div class="page-header">
+            <h1>Geographical Analysis</h1>
+          </div>
+          <div class="info-box">
+            <!-- This chart groups analyzed station IDs by the state listed in station metadata. Coordinates are not available, so it does not place markers on a map. -->
+          </div>
+          <div class="chart-card">
+            <h3>Analyzed Stations by State</h3>
+            <canvas id="stateCoverageChart"></canvas>
+          </div>
+        </section>
+
+        <section id="live" class="panel">
+          <div class="page-header">
+            <h1>Historical Monitoring Snapshot</h1>
+          </div>
+          <div class="info-box">
+             It summarizes the latest available Hadoop-generated average PM2.5 output by station: the highest station average, the number of stations whose average exceeds 100 µg/m³, and the five highest station averages.
+          </div>
+          <div id="liveMonitoringCards" class="kpi-grid"></div>
+          <div class="table-card">
+            <h3>Five highest station averages (Hadoop output)</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Station ID</th>
+                  <th>Average PM2.5</th>
+                </tr>
+              </thead>
+              <tbody id="monitoringStationsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="pipeline" class="panel">
+          <div class="page-header">
+            <h1>Big Data Pipeline</h1>
+            <p class="page-description">Follow how source records become Hadoop analytics and dashboard visualizations.</p>
+          </div>
+          <div class="pipeline-flow">
+            <article class="pipeline-step">
+              <div class="step-marker">01</div>
+              <div class="step-content">
+                <span class="step-type">INPUT</span>
+                <h2>Air Quality Dataset</h2>
+                <p>Source observations.</p>
+                <span class="step-detail">Fields: StationId · Datetime · PM2.5 · AQI_Bucket</span>
+              </div>
+            </article>
+            <article class="pipeline-step">
+              <div class="step-marker">02</div>
+              <div class="step-content">
+                <span class="step-type">PREPARATION</span>
+                <h2>Preprocessing</h2>
+                <p>Python/Pandas cleans and standardizes records.</p>
+                <span class="step-detail">Output: air_quality_cleaned.csv</span>
+              </div>
+            </article>
+            <article class="pipeline-step">
+              <div class="step-marker">03</div>
+              <div class="step-content">
+                <span class="step-type">DISTRIBUTED STORAGE</span>
+                <h2>HDFS Input</h2>
+                <p>Upload cleaned CSV for distributed processing.</p>
+                <span class="step-detail">/airquality/input/air_quality_cleaned.csv</span>
+              </div>
+            </article>
+            <article class="pipeline-step">
+              <div class="step-marker">04</div>
+              <div class="step-content">
+                <span class="step-type">HADOOP STREAMING · TWO JOBS</span>
+                <h2>Map → Shuffle &amp; Sort → Reduce</h2>
+                <p>Hadoop Streaming runs Python scripts; Shuffle &amp; Sort groups matching keys.</p>
+                <div class="pipeline-jobs">
+                  <div class="pipeline-job">
+                    <h3>Job 1 · AQI Category Counts</h3>
+                    <p><strong>Map:</strong> (date, category) → 1 · <strong>Shuffle:</strong> group keys · <strong>Reduce:</strong> count</p>
+                  </div>
+                  <div class="pipeline-job">
+                    <h3>Job 2 · Average PM2.5</h3>
+                    <p><strong>Map:</strong> station, PM2.5 · <strong>Shuffle:</strong> group station · <strong>Reduce:</strong> average</p>
+                  </div>
+                </div>
+              </div>
+            </article>
+            <article class="pipeline-step">
+              <div class="step-marker">05</div>
+              <div class="step-content">
+                <span class="step-type">PROCESSED RESULTS</span>
+                <h2>Hadoop Output Files</h2>
+                <p>Reducers write aggregates consumed by the dashboard.</p>
+                <div class="step-output-list">
+                  <code>output_aqi_bucket.txt</code>
+                  <code>output_avg_pm25.txt</code>
+                </div>
+              </div>
+            </article>
+            <article class="pipeline-step">
+              <div class="step-marker">06</div>
+              <div class="step-content">
+                <span class="step-type">BACKEND</span>
+                <h2>Flask API</h2>
+                <p>Reads outputs and serves JSON to the frontend.</p>
+                <span class="step-detail">/api/aqi · /api/pm25 · /api/overview</span>
+              </div>
+            </article>
+            <article class="pipeline-step">
+              <div class="step-marker">07</div>
+              <div class="step-content">
+                <span class="step-type">PRESENTATION</span>
+                <h2>Interactive Dashboard</h2>
+                <p>Renders AQI and PM2.5 charts, KPIs, and the monitoring snapshot.</p>
+                <span class="step-detail">Hadoop analytics → API → visualizations</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="dataset" class="panel">
+          <div class="page-header">
+            <h1>Dataset Information</h1>
+          </div>
+          <div id="datasetInfo" class="text-card"></div>
+        </section>
+
+        <section id="about" class="panel">
+          <div class="page-header">
+            <h1>About the Project</h1>
+          </div>
+          <div class="text-card">
+            <p>This platform demonstrates a Hadoop-based air quality analytics workflow: preprocessing, HDFS storage, MapReduce job execution, and API-driven dashboard visualization.</p>
+            <p>The core analytics remain powered by Hadoop outputs, while the frontend consumes those results for charts and KPI summaries.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>
